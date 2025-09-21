@@ -1,0 +1,596 @@
+{
+  "name": "Agent with image or video analysis capabilities",
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "initialMessages": "Hi there! 👋\n",
+        "options": {
+          "allowFileUploads": true,
+          "inputPlaceholder": "1. If you want to upload a file, you must send it with at least one character. The text content will not affect the file content and reply. 2. If the file you want to upload exceeds 10000KB, please compress it before uploading.",
+          "subtitle": "1. If you want to upload a file, you must send it with at least one character. The text content will not affect the file content and reply. 2. If the file you want to upload exceeds 10000KB, please compress it before uploading.",
+          "title": "Agent with image or video analysis capabilities"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -192,
+        -720
+      ],
+      "id": "896f835f-f7d5-4fb3-9f34-254648934153",
+      "name": "When chat message received",
+      "webhookId": "ad4e1c30-2c80-4996-bbe4-5b6e09f27754"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cc10b816-379c-4886-87dd-747f0ce2ba63",
+                    "leftValue": "={{ $json.files[0].fileType }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "9102a4de-5f31-4d64-a314-56f289da3c0d",
+                    "leftValue": "={{ $json.files[0].fileType }}",
+                    "rightValue": "video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "video"
+            }
+          ]
+        },
+        "options": {
+          "allMatchingOutputs": true
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        464,
+        -736
+      ],
+      "id": "d02feda3-686f-43a1-9786-9c068239aba6",
+      "name": "image or video"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d8a6b82f-d12a-4fa4-a832-46b1f401d70e",
+              "leftValue": "={{ $json.files }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "exists",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "097475ca-5d28-44db-93af-631c42c48d56",
+              "leftValue": "={{ $json.msgType }}",
+              "rightValue": "text",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        256,
+        -720
+      ],
+      "id": "df654e2b-90a9-467f-9fe3-56b0b70d709f",
+      "name": "Does the file exist?"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "text": "Describe everything in the photo in great detail",
+        "inputType": "base64",
+        "simplify": false,
+        "options": {
+          "detail": "auto"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        912,
+        -960
+      ],
+      "id": "c4555016-a51d-481f-8540-5df05f0df78d",
+      "name": "Analyze image (Detailed description)",
+      "credentials": {
+        "openAiApi": {
+          "id": "CWQYQSl8ObyBM4nl",
+          "name": "AI_Based"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "keys": {
+          "key": [
+            {
+              "currentKey": "output",
+              "newKey": "chatInput"
+            }
+          ]
+        },
+        "additionalOptions": {}
+      },
+      "type": "n8n-nodes-base.renameKeys",
+      "typeVersion": 1,
+      "position": [
+        1488,
+        -592
+      ],
+      "id": "cc1138b3-5dfa-43ed-aeab-05c10f59f8db",
+      "name": "Edit the message Key name"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map((item) => {\n  const json = item.json || {};\n  const files = json.files || [];\n  const targetName = files[0]?.fileName;\n  const targetMime = files[0]?.mimeType;\n\n  const bin = item.binary || {};\n  const keys = Object.keys(bin);\n  if (!keys.length) {\n    throw new Error('No binary found on item.');\n  }\n\n  // 選擇圖片的優先序：binary.data → 檔名匹配 → 任一 image/* → 最後退回第一個\n  let chosen =\n    bin.data ||\n    (targetName && keys.map((k) => bin[k]).find((b) => b?.fileName === targetName)) ||\n    keys.map((k) => bin[k]).find((b) => String(b?.mimeType || '').startsWith('image/')) ||\n    bin[keys[0]];\n\n  if (!chosen) {\n    throw new Error('No binary candidate found.');\n  }\n\n  const mime = String(chosen.mimeType || targetMime || '');\n  if (!mime.startsWith('image/')) {\n    throw new Error('No image binary found.');\n  }\n\n  const result = { ...chosen };\n  if (!result.fileName && targetName) result.fileName = targetName;\n  if (!result.mimeType && targetMime) result.mimeType = targetMime;\n\n  return {\n    json,\n    binary: { data: result },\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -960
+      ],
+      "id": "f47db0fc-64eb-40ff-910f-ce77d4ba6027",
+      "name": "JS - Find images of type Binary (one)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ec3a884f-480f-4462-9437-a7de0faed372",
+              "name": "output",
+              "value": "={{ \"<This is a system message> The user uploaded an image, and this is a complete description of the image: \" + $json.choices[0].message.content }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        -960
+      ],
+      "id": "2175f9b7-3df6-4274-bbad-b9185d5f2939",
+      "name": "Edit message content (image)"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ec3a884f-480f-4462-9437-a7de0faed372",
+              "name": "output",
+              "value": "={{ \"<This is a system message> The user uploaded a video, and the following content is the system's automatic analysis of the video. You will receive descriptions of ten screenshots from a video (evenly divided into five segments along the timeline). Please use these descriptions to understand the content of the video (you will need to make inferences) and do not mention how many screenshots you have received to the user, nor directly provide the user with descriptions of these ten screenshots. The system analysis is as follows: \" + $json.discription }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        -368
+      ],
+      "id": "81ce5503-d2ff-4674-97df-62fe305a1cd4",
+      "name": "Edit message content (video)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map((item) => {\n  const json = item.json || {};\n  const bin = item.binary || {};\n  const msg = json.message || {};\n\n  // 盡量把 files 補起來\n  const files = Array.isArray(json.files) ? json.files : (Array.isArray(msg.files) ? msg.files : []);\n\n  // 嘗試推測 MIME\n  const mimeCandidates = [\n    files[0]?.mimeType,\n    msg.mimeType,\n    ...Object.values(bin).map((b) => b?.mimeType),\n  ].filter(Boolean);\n  const mime = String(mimeCandidates[0] || '').toLowerCase();\n\n  // 判斷類型\n  let kind = 'text';\n  if (mime.startsWith('image/')) kind = 'image';\n  else if (mime.startsWith('video/')) kind = 'video';\n  else if ((msg.type || '').toLowerCase() === 'image') kind = 'image';\n  else if ((msg.type || '').toLowerCase() === 'video') kind = 'video';\n\n  // 確保 Switch 能判斷：補上 files[0].fileType 與 msgType\n  if (files[0]) files[0].fileType = files[0].fileType || kind;\n\n  return {\n    json: { ...json, files, msgType: kind },\n    binary: bin,\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        -720
+      ],
+      "id": "7686e025-8b4a-4448-b4fc-c82dad64ace8",
+      "name": "JS - Marking Data"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "CHATGPT-4O-LATEST"
+        },
+        "text": "Describe everything in the photo in great detail",
+        "inputType": "base64",
+        "simplify": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        912,
+        -640
+      ],
+      "id": "85fb3e86-fa80-48a0-8c6f-3475dac800c0",
+      "name": "Analyze image (Detailed description) - clone",
+      "credentials": {
+        "openAiApi": {
+          "id": "CWQYQSl8ObyBM4nl",
+          "name": "AI_Based"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const arr = $input.first().json?.descriptions ?? [];\nif (!Array.isArray(arr)) {\n  throw new Error('descriptions must be an array');\n}\n\nconst descs = arr.map(x => String(x).trim()).filter(Boolean);\n\nconst ordMap = {\n  1:'first', 2:'second', 3:'third', 4:'fourth', 5:'fifth',\n  6:'sixth', 7:'seventh', 8:'eighth', 9:'ninth', 10:'tenth'\n};\nfunction ordinalWord(n){ return ordMap[n] || `${n}th`; }\n\nconst parts = descs.map((d, i) => `This is the ${ordinalWord(i + 1)} one: ${d}`);\nconst text = descs.length\n  ? `The following is a detailed description of the screenshots of the video in chronological order: ${parts.join('; ')}.`\n  : 'No descriptions found.';\n\nreturn [{\n  json: {\n    discription: text,   // 後續可直接餵給模型或聊天節點\n    count: descs.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -368
+      ],
+      "id": "f064b94e-f460-4355-8835-c82b92083038",
+      "name": "JS - Merge analysis of multiple screenshots"
+    },
+    {
+      "parameters": {
+        "resource": "assistant",
+        "assistantId": {
+          "__rl": true,
+          "value": "asst_zVnDETnF9Av7tWfiqxw58Exv",
+          "mode": "list",
+          "cachedResultName": "video analysis"
+        },
+        "memory": "threadId",
+        "threadId": "thread_yzUDmVXvDZO2i06FTIUsYPJo",
+        "options": {
+          "timeout": 2000000,
+          "preserveOriginalTools": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        112,
+        -368
+      ],
+      "id": "6f00d4dd-5646-464d-b6b4-215cd2ae5aa4",
+      "name": "Agent",
+      "credentials": {
+        "openAiApi": {
+          "id": "CWQYQSl8ObyBM4nl",
+          "name": "AI_Based"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "choices[0].message.content",
+              "renameField": true,
+              "outputFieldName": "descriptions"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        704,
+        -368
+      ],
+      "id": "8ede6077-8456-4f88-86cb-9470617c09e4",
+      "name": "Merge the descriptions of multiple images into an array"
+    },
+    {
+      "parameters": {
+        "language": "python",
+        "pythonCode": "import os\nimport base64\nimport tempfile\nimport shutil\nimport cv2\n\ndef guess_temp_suffix(b):\n    ext = (b.get(\"fileExtension\") or \"\").strip().lower()\n    if ext:\n        if not ext.startswith(\".\"):\n            ext = \".\" + ext\n        return ext\n    fname = b.get(\"fileName\") or \"\"\n    _, fe = os.path.splitext(fname)\n    if fe:\n        return fe\n    mime = (b.get(\"mimeType\") or \"\").lower()\n    if mime == \"video/mp4\":\n        return \".mp4\"\n    if mime in (\"video/quicktime\", \"video/qt\"):\n        return \".mov\"\n    if mime in (\"video/x-matroska\", \"video/mkv\"):\n        return \".mkv\"\n    if mime in (\"video/x-msvideo\", \"video/avi\"):\n        return \".avi\"\n    return \".mp4\"\n\ndef extract_n_screenshots_from_video_bytes(video_bytes: bytes, temp_suffix: str = \".mp4\"):\n    tmp_dir = tempfile.mkdtemp(prefix=\"vidtmp_\")\n    tmp_path = os.path.join(tmp_dir, \"input_video\" + temp_suffix)\n    with open(tmp_path, \"wb\") as f:\n        f.write(video_bytes)\n\n    cap = cv2.VideoCapture(tmp_path)\n    if not cap.isOpened():\n        shutil.rmtree(tmp_dir, ignore_errors=True)\n        raise Exception(\"無法開啟影片。請確認編碼/副檔名與 OpenCV 解碼支援。\")\n\n    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))\n    if total_frames <= 0:\n        total_frames = 0\n        while True:\n            ok = cap.grab()\n            if not ok:\n                break\n            total_frames += 1\n        cap.release()\n        cap = cv2.VideoCapture(tmp_path)\n        if not cap.isOpened():\n            shutil.rmtree(tmp_dir, ignore_errors=True)\n            raise Exception(\"重新開啟影片失敗。\")\n\n    if total_frames == 0:\n        cap.release()\n        shutil.rmtree(tmp_dir, ignore_errors=True)\n        raise Exception(\"偵測到 0 影格，可能是壞檔或編碼不支援。\")\n\n    segments = 7 # ! ! ! ! ! ! ! !\n    indices = []\n    for i in range(segments):\n        idx = int(round(total_frames * (i + 0.5) / segments))\n        idx = max(0, min(idx, total_frames - 1))\n        indices.append(idx)\n\n    uniq = []\n    seen = set()\n    for idx in indices:\n        if idx not in seen:\n            uniq.append(idx)\n            seen.add(idx)\n\n    images = []\n    for idx in uniq:\n        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)\n        ok, frame = cap.read()\n        if not ok or frame is None:\n            continue\n        ok2, buf = cv2.imencode(\".jpg\", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 90])\n        if ok2:\n            images.append(buf.tobytes())\n\n    cap.release()\n    shutil.rmtree(tmp_dir, ignore_errors=True)\n    return images\n\n# ===== n8n I/O =====\nitems = _input.all() or []\nout_items = []\n\nfor it in items:\n    bobj = it.get(\"binary\") or {}\n    if not bobj:\n        continue\n    bin_key = next(iter(bobj.keys()), None)\n    if not bin_key:\n        continue\n    meta = bobj[bin_key]\n    b64 = meta.get(\"data\")\n    if not b64:\n        continue\n\n    video_bytes = base64.b64decode(b64)\n    temp_suffix = guess_temp_suffix(meta)\n    imgs = extract_n_screenshots_from_video_bytes(video_bytes, temp_suffix=temp_suffix)\n\n    for i, img_bytes in enumerate(imgs, 1):\n        b64_img = base64.b64encode(img_bytes).decode(\"utf-8\")\n        out_items.append({\n            \"json\": {\"index\": i},\n            \"binary\": {\n                \"data\": {\n                    \"data\": b64_img,\n                    \"fileName\": f\"shot_{i}.jpg\",\n                    \"mimeType\": \"image/jpeg\",\n                    \"fileExtension\": \"jpg\",\n                }\n            }\n        })\n\nreturn out_items"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -640
+      ],
+      "id": "7963e031-2f36-4af8-b0b7-966a7ac19aa0",
+      "name": "Python - Cut video into pictures (7)"
+    },
+    {
+      "parameters": {
+        "content": "## Receive and mark messages \n**The maximum file size is 10000KB**",
+        "height": 256,
+        "width": 400
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -224,
+        -816
+      ],
+      "typeVersion": 1,
+      "id": "b2a016ae-699e-414e-85b1-e9f14e9a7e25",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Image",
+        "height": 304,
+        "width": 624,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        640,
+        -1072
+      ],
+      "typeVersion": 1,
+      "id": "9a550eb5-2e80-4b58-bffc-186d9e31a723",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Video",
+        "height": 528,
+        "width": 624,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        640,
+        -720
+      ],
+      "typeVersion": 1,
+      "id": "5573c52f-08c8-425c-a93f-a90cace37539",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "JS - Marking Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "image or video": {
+      "main": [
+        [
+          {
+            "node": "JS - Find images of type Binary (one)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Python - Cut video into pictures (7)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Does the file exist?": {
+      "main": [
+        [
+          {
+            "node": "image or video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image (Detailed description)": {
+      "main": [
+        [
+          {
+            "node": "Edit message content (image)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit the message Key name": {
+      "main": [
+        [
+          {
+            "node": "Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS - Find images of type Binary (one)": {
+      "main": [
+        [
+          {
+            "node": "Analyze image (Detailed description)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit message content (image)": {
+      "main": [
+        [
+          {
+            "node": "Edit the message Key name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit message content (video)": {
+      "main": [
+        [
+          {
+            "node": "Edit the message Key name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS - Marking Data": {
+      "main": [
+        [
+          {
+            "node": "Does the file exist?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image (Detailed description) - clone": {
+      "main": [
+        [
+          {
+            "node": "Merge the descriptions of multiple images into an array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS - Merge analysis of multiple screenshots": {
+      "main": [
+        [
+          {
+            "node": "Edit message content (video)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent": {
+      "main": [
+        []
+      ]
+    },
+    "Merge the descriptions of multiple images into an array": {
+      "main": [
+        [
+          {
+            "node": "JS - Merge analysis of multiple screenshots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Python - Cut video into pictures (7)": {
+      "main": [
+        [
+          {
+            "node": "Analyze image (Detailed description) - clone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c61aa9e7-7e8a-42e8-b831-7dd36fb3fbcd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5c3b5db3715a57f4ed79fed05ac755845d719ba3ec8ccb7d9438a3d85e556c1f"
+  },
+  "id": "sViGHlLtUGgrMbw6",
+  "tags": []
+}
